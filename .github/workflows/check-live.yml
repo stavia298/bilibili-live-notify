@@ -1,4 +1,3 @@
-
 # B站主播开播监控 - GitHub Actions 工作流
 # 每 10 分钟自动检查一次"永夜秋殇"是否开播，状态变化时提交 state.json 回仓库
 
@@ -6,9 +5,8 @@ name: B站开播监控
 
 on:
   schedule:
-    # 每 10 分钟运行一次（错开整十分高峰，在第 3/13/23/33/43/53 分运行；cron 用 UTC，本表达式不涉及时区）
+    # 错开每小时整点高峰，在 UTC 第 3/13/23/33/43/53 分运行
     - cron: "3,13,23,33,43,53 * * * *"
-  # 手动运行：可在 GitHub 网页点击 "Run workflow" 时选择运行模式
   workflow_dispatch:
     inputs:
       mode:
@@ -18,34 +16,30 @@ on:
         options:
           - normal
           - test_notification
-        default: "normal"     # 默认正常检查
+        default: "normal"
 
-# contents: write 是为了把更新后的 state.json 用 git push 提交回仓库
-# 只在状态变化时才提交；测试通知模式不改 state.json，自动跳过提交
 permissions:
   contents: write
 
 jobs:
   check:
-    runs-on: ubuntu-latest   # 标准免费 runner，0 成本
+    runs-on: ubuntu-latest
     steps:
       - name: 检出仓库
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: 安装 Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
-          cache: "pip"          # 缓存 pip 依赖，加速后续运行
+          cache: "pip"
 
       - name: 安装依赖
         run: pip install -r requirements.txt
 
       - name: 运行（根据模式选择命令）
         env:
-          # SendKey 只从 GitHub Secrets 读取，绝不写进源码或 workflow 明文
           SERVERCHAN_SENDKEY: ${{ secrets.SERVERCHAN_SENDKEY }}
-          # workflow_dispatch 选择的模式；schedule 触发时为空，按 normal 处理
           MODE: ${{ github.event.inputs.mode }}
         run: |
           if [ "$MODE" = "test_notification" ]; then
@@ -57,13 +51,10 @@ jobs:
           fi
 
       - name: 保存状态（仅 state.json 变化时才提交）
-        # 正常检查且状态变化时才会 commit；
-        # 测试通知模式不改 state.json，git diff 为空，这里自动跳过
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add state.json
-          # git diff --cached --quiet 为真表示没有变化，跳过提交
           if git diff --cached --quiet; then
             echo "状态未变化，不提交"
           else
