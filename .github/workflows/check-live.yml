@@ -1,12 +1,13 @@
 # B站主播开播监控 - GitHub Actions 工作流
-# 每 10 分钟自动检查一次"永夜秋殇"是否开播，状态变化时提交 state.json 回仓库
+# 每 5 分钟请求运行一次，以降低 GitHub schedule 偶发延迟或丢任务的影响
 
 name: B站开播监控
 
 on:
   schedule:
-    # 错开每小时整点高峰，在 UTC 第 3/13/23/33/43/53 分运行
-    - cron: "3,13,23,33,43,53 * * * *"
+    # GitHub schedule 是尽力触发；提高请求频率，使实际检测尽量保持在 10 分钟以内
+    # 从 UTC 第 3 分开始错开整点高峰：03/08/13/18/.../58
+    - cron: "3/5 * * * *"
   workflow_dispatch:
     inputs:
       mode:
